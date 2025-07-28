@@ -16,7 +16,7 @@ if([fullName, email, username, password].some((field) => field?.trim() === "")){
      throw new ApiError(400, "All fields are compulsory")
     }
 
- const existedUser = User.findOne({
+ const existedUser = await User.findOne({
     $or: [{ username }, { email }]
  })
 
@@ -25,15 +25,20 @@ if([fullName, email, username, password].some((field) => field?.trim() === "")){
  }
    
   const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverimageLocalPath = req.files?.coverImage[0]?.path;
+  //const coverimageLocalPath = req.files?.coverImage[0]?.path;
 
+  let coverImageLocalPath;
+
+  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+    coverImageLocalPath = req.files.coverImage[0].path
+  }
   if(!avatarLocalPath){
      throw new ApiError(400, "Avatar image is required")
   }
 
  //uploading to cloudanary
    const avatar = await uploadOnCloudinary(avatarLocalPath);
-   const coverImage = await uploadOnCloudinary(coverimageLocalPath);
+   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
    if(!avatar){
     throw new ApiError(400, "Avatar image is required")
@@ -64,6 +69,20 @@ if([fullName, email, username, password].some((field) => field?.trim() === "")){
 
 
 export {registerUser}
+
+
+// get user details from frontend
+    // validation - not empty
+    // check if user already exists: username, email
+    // check for images, check for avatar
+    // upload them to cloudinary, avatar
+    // create user object - create entry in db
+    // remove password and refresh token field from response
+    // check for user creation
+    // return res
+
+    //or simply 
+
 
 //form data lunga
 //validating data of user
