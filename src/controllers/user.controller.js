@@ -4,8 +4,26 @@ import {User} from "../models/user.model.js"
 import { uploadOnCloudinary } from '../utils/Cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 
-const registerUser = asyncHandler( async (req, res) => {
 
+const generateAcessAndRefreshToken =async(userId) => {
+    try {
+      const user = User.findById(userId)
+      const acessToken = user.generateAcessAndRefreshToken()
+      const refreshToken = user.generateRefreshToken()
+      
+      //since db is an object so adding data in object using . simple
+      user.refreshToken = refreshToken
+      await user.save({validateBeforeSave: false})
+
+      return {acessToken, refreshToken}
+
+    } catch (error) {
+       throw new ApiError(500, "Something went wrong while generating token")
+    }
+}
+
+const registerUser = asyncHandler( async (req, res) => {
+    
    const {fullName, email, username, password} = req.body
    console.log("email: ", email); 
 
@@ -67,8 +85,87 @@ if([fullName, email, username, password].some((field) => field?.trim() === "")){
    
 })
 
+const loginUser = asyncHandler(async(req, res) => {
+     //destructuring the body to get username and password
+      const {email, username, password} = req.body();
+      if(!username || !email){
+         throw new ApiError(400, "username or password is required")
+      }
+     
+     const user = await  User.findOne({
+         //$ is used for mongo operator
+         $or : [{username}, {email}]
+      })
 
-export {registerUser}
+      if(!user){
+         throw new ApiError(404, "user doesnt exist register first")
+      }
+
+     const isPasswordValid =  await user.isPasswordCorrect(password)
+     if(!isPasswordValid){
+        throw new ApiError(401, "Invalid user credential")
+     }
+     
+     const {acessToken, refreshToken} = await generateAcessAndRefreshToken(user._id)
+     
+     const loggedInUser = User.findById(user._id)
+     .select("-password -refreshToken")
+
+     const options = {
+      httOnly : true,
+      secure: true
+     }
+
+     return 
+     res
+     .status(200)
+     .cookie("acessToken", acessToken, options)
+     .cookie("refreshToken", refreshToken, options)
+     .json(
+      new ApiResponse(
+         200,
+         {
+            user : loggedInUser, acessToken, refreshToken
+         },
+         "user logged in success"
+      )
+     )
+
+   })
+
+const logoutUser = asyncHandler(async(req, res) => {
+   //made a middle taki hum user data pass karsake after verification and can be used in the req body for working of logout function
+      const userId = req.user._id
+   //moti baat user ka data acess ke liye middle ware bnwaya
+   //aur verification bhi sath ke sath ho ri h middleware mei
+      await User.findByIdAndUpdate(userId, {
+         $set: {
+            refreshToken: undefined
+         }
+      },
+      {
+         new : true
+      }
+   )
+
+   const options = {
+      httOnly : true,
+      secure: true
+     }
+  
+     return res
+     .status(200)
+     .clearCookie("acessToken", options)
+     .clearCookie("refreshToken", options)
+     .json(new ApiResponse(200, {}, "User logged Out"))
+
+   }
+)
+export {
+   registerUser,
+   loginUser,
+   logoutUser
+}
 
 
 // get user details from frontend
@@ -90,3 +187,10 @@ export {registerUser}
 //verify bhi karaunga 
 //phir data ko database mei store karaunga  
 //phir usko token dedunga taki agli baar login kare toh verified user dikhae
+
+
+//sabse email pass req body
+//check ki user h agar h toh theek vrna register user first
+//pass check if wrong or right 
+//generate refresh token and acess
+//send cookie's 
