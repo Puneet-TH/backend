@@ -3,12 +3,12 @@ import {ApiError} from "../utils/ApiError.js"
 import {User} from "../models/user.model.js"
 import { uploadOnCloudinary } from '../utils/Cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
-
+import {jwt} from "jsonwebtoken"
 
 const generateAcessAndRefreshToken =async(userId) => {
     try {
-      const user = User.findById(userId)
-      const acessToken = user.generateAcessAndRefreshToken()
+      const user = await User.findById(userId)
+      const acessToken = user.generateAcessToken()
       const refreshToken = user.generateRefreshToken()
       
       //since db is an object so adding data in object using . simple
@@ -87,11 +87,15 @@ if([fullName, email, username, password].some((field) => field?.trim() === "")){
 
 const loginUser = asyncHandler(async(req, res) => {
      //destructuring the body to get username and password
-      const {email, username, password} = req.body();
-      if(!username || !email){
+      const {email, username, password} = req.body;
+      if(!username && !email){
          throw new ApiError(400, "username or password is required")
       }
-     
+// Here is an alternative of above code like if we want any one of them
+    // if (!(username || email)) {
+    //     throw new ApiError(400, "username or email is required")
+        
+    // }
      const user = await  User.findOne({
          //$ is used for mongo operator
          $or : [{username}, {email}]
@@ -108,7 +112,7 @@ const loginUser = asyncHandler(async(req, res) => {
      
      const {acessToken, refreshToken} = await generateAcessAndRefreshToken(user._id)
      
-     const loggedInUser = User.findById(user._id)
+     const loggedInUser = await User.findById(user._id)
      .select("-password -refreshToken")
 
      const options = {
@@ -116,8 +120,7 @@ const loginUser = asyncHandler(async(req, res) => {
       secure: true
      }
 
-     return 
-     res
+     return  res
      .status(200)
      .cookie("acessToken", acessToken, options)
      .cookie("refreshToken", refreshToken, options)
@@ -161,10 +164,53 @@ const logoutUser = asyncHandler(async(req, res) => {
 
    }
 )
+
+const refreshAcessToken = asyncHandler(async(req, res) => {
+   const incoming =  req.cookies.refreshToken || req.body.refreshToken 
+    
+   if(!incoming){
+      throw new ApiError(401, "refresh Token not available in cookies unauthorized req")
+   }
+   
+try {
+   const decodedToken = jwt.verify(incoming, process.env.REFRESH_TOKEN_SECRET)
+   
+   const user = await User.findById(decodedToken?._id)
+      if(!user){
+            throw new ApiError(401, "refresh Token not available in db unauthorized req")
+         }
+    
+      if(incoming !== user?.refreshToken){
+           throw new ApiError(401, "refresh token is expired or used")
+      }
+     const options = {
+        httpOnly: true,
+        secure: true
+     }
+   
+   const {acessToken, newrefreshToken} = await generateAcessAndRefreshToken(user._id)
+      
+     return res
+     .status(200)
+     .cookie("acessToken", acessToken, options)
+     .cookie("refreshToken", newrefreshToken, options)
+     .json(
+        new ApiResponse(
+         200,
+         {acessToken, refreshToken : newrefreshToken},
+         "Acess token refreshed sucessfully"
+        )
+      )
+} catch (error) {
+   throw new ApiError(401, error?.message || "invalid refresh token")
+}
+
+})
 export {
    registerUser,
    loginUser,
-   logoutUser
+   logoutUser,
+   refreshAcessToken
 }
 
 
