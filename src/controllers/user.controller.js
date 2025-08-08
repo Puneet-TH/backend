@@ -14,7 +14,7 @@ const generateAcessAndRefreshToken =async(userId) => {
       
       //since db is an object so adding data in object using . simple
       user.refreshToken = refreshToken
-      await user.save({validateBeforeSave: false})
+      await user.save({validateBeforeSave: false})//checks for if teh required fields are there or not if enabled false bypass these check bydefault
 
       return {acessToken, refreshToken}
 
@@ -244,8 +244,8 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
    if(!fullName || !email){
       throw new ApiError(400, "All fields are required")
    }
-  //check
-   const user = await User.findById(
+  //check  //$set is always used in findbyidand update
+   const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
          $set: {
