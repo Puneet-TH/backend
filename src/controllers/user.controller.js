@@ -143,8 +143,8 @@ const logoutUser = asyncHandler(async(req, res) => {
    //moti baat user ka data acess ke liye middle ware bnwaya
    //aur verification bhi sath ke sath ho ri h middleware mei
       await User.findByIdAndUpdate(userId, {
-         $set: {
-            refreshToken: undefined
+         $unset: {
+            refreshToken: 1
          }
       },
       {
@@ -339,7 +339,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>  {
          },
          {
              $lookup: {
-               from: "subscription",
+               from: "subscriptions",
                localField: "_id",
                foreignField: "channel",
                as: "subscribers"
@@ -347,7 +347,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>  {
          },
          {
             $lookup: {
-               from: "subscription",
+               from: "subscriptions",
                localField: "_id",
                foreignField: "subscriber",
                as: "subscribedTo"
@@ -362,7 +362,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>  {
                   $size: "$subscribedTo"
                },
                isSubscribed: {
-                     $condition: {
+                     $cond: {
                         if: {$in: [req.user?._id, "$subscribers.subscriber"]},
                         then: true,
                         else: false,
@@ -490,3 +490,4 @@ export {
 //pass check if wrong or right 
 //generate refresh token and acess
 //send cookie's 
+
