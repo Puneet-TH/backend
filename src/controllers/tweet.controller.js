@@ -13,7 +13,7 @@ const createTweet = asyncHandler(async (req, res) => {
     }
     const {content} = req.body
     console.log(content)
-    const user = await User.findById(req.user?.id) 
+    const user = await User.findById(req.user?._id) 
     if(!user) {
         throw new ApiError(401, "cannot get tweet from user")
     }
