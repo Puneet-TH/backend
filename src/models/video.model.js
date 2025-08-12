@@ -8,7 +8,7 @@ const videoSchema = new Schema(
         },
         thumbnail: {
             type: String, //cloudnary
-            required: true
+            required: false
         },
          title: {
             type: String,
