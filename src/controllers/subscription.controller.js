@@ -17,9 +17,16 @@ const toggleSubscription = asyncHandler(async (req, res) => {
             subscriber: req.user._id,
             channel: channelId
         })
+        //find one and delete doesnt return null return the deleted memory adress 
      if(alreadySubcribed){
+        const unsubscribe = await Subscription.findOneAndDelete(
+             {
+            subscriber: req.user._id,
+            channel: channelId
+           }
+        )
         return res.status(200)
-                  .json(new ApiResponse(200, alreadySubcribed, "channel already subscribed"))
+                  .json(new ApiResponse(200, unsubscribe, "channel unsubscribed succesfully"))
      }
      const subscribed = await Subscription.create(
         {
