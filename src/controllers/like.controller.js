@@ -25,26 +25,30 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
            .json(new ApiResponse(200, likeVideo, "video liked sucessfully"))
    })
 
-   //testing not done
+   
 const toggleCommentLike = asyncHandler(async (req, res) => {
     const {commentId} = req.params
     if(!commentId){
         throw new ApiError(501, "unable to fetch commentId")
     }
-    const commentLiked = await Like.findOne({comment : commentId, owner : req.user?._id})
-    if(commentLiked){
-        const deleted = await Like.deleteOne({_id : commentLiked._id}) 
-        return res
-               .status(200)
-               .json(new ApiResponse(200, deleted, "already liked the current video"))          
-    }
-    const likeComment = await Like.create({
-        comment : commentId,
-        likedBy: req?.user._id
-    })
-    return res
-           .status(200)
-           .json(new ApiResponse(200, likeComment, "comment liked sucessfully"))
+    try {
+            const commentLiked = await Like.findOne({comment : commentId, owner : req.user?._id})
+            if(commentLiked){
+                const deleted = await Like.deleteOne({_id : commentLiked._id}) 
+                return res
+                    .status(200)
+                    .json(new ApiResponse(200, deleted, "already liked the current video"))          
+            }
+            const likeComment = await Like.create({
+                comment : commentId,
+                likedBy: req?.user._id
+            })
+            return res
+                .status(200)
+                .json(new ApiResponse(200, likeComment, "comment liked sucessfully"))
+    } catch (error) {
+        throw new ApiError(501, error ? error : "unable to like the comment internal server error")
+}
 
 })
 
