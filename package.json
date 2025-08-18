@@ -19,6 +19,7 @@
     "prettier": "^3.6.2"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.12",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.7.0",
     "cloudinary-video-analytics": "^1.8.2",
@@ -29,6 +30,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
     "mongoose-aggregate-paginate-v2": "^1.1.4",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "tailwindcss": "^4.1.12",
+    "vite": "^7.1.2"
   }
 }

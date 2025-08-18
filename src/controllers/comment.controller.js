@@ -8,45 +8,73 @@ const getVideoComments = asyncHandler(async (req, res) => {
     //TODO: get all comments for a video
     const {videoId} = req.params
     const {page = 1, limit = 10} = req.query
-        if(!videoId){
-            throw new ApiError(401, "wrong Id format in the params")
-        }
+    
+    if(!videoId){
+        throw new ApiError(401, "wrong Id format in the params")
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+        throw new ApiError(400, "Invalid video ID format")
+    }
+    
     try {
-        const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pagination: true
-       }
-        const comments = await Comment.aggregatePaginate([
+        const pipeline = [
             {
-                $match :{
-                    video :  new mongoose.Types.ObjectId(videoId)
-                }
-            },{
-                $lookup: {
-                    from : "users",
-                    localField: "owner",
-                    foreignField: "_id",
-                    as: "commentsOwner"
+                $match: {
+                    video: new mongoose.Types.ObjectId(videoId)
                 }
             },
-            {$unwind: "$commentsOwner"}
-            ,{
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "owner",
+                    foreignField: "_id",
+                    as: "owner",
+                    pipeline: [
+                        {
+                            $project: {
+                                username: 1,
+                                avatar: 1
+                                // Removed _id and other sensitive fields for privacy
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields: {
+                    owner: {
+                        $first: "$owner"
+                    }
+                }
+            },
+            {
                 $project: {
                     content: 1,
-                    createdAt : 1,
-                    owner: "$commentsOwners.owner",   
-                    username: "$commentsOwner.username",
-                    avatar: "$commentsOwner.avatar"
+                    createdAt: 1,
+                    owner: 1
+                }
+            },
+            {
+                $sort: {
+                    createdAt: -1
                 }
             }
-        ], options)
-        
-        return res.status(200).json(new ApiResponse(200, comments,"all comments of video fetched sucessfully"))
-       
+        ];
 
+        const options = {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            pagination: true
+        };
+
+        const comments = await Comment.aggregatePaginate(pipeline, options);
+        
+        return res.status(200).json(new ApiResponse(200, comments, "all comments of video fetched sucessfully"));
+       
     } catch (error) {
-        throw new ApiError(500, error? error : "unable to fetch from db")
+        console.error('Error fetching comments:', error);
+        return res.status(500).json(new ApiResponse(500, [], "unable to fetch comments from db"));
     }
 })
 

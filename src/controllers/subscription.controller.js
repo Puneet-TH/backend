@@ -58,12 +58,59 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
      if(!subscriberId){
           throw new ApiError(400, "no id in params")
      }
-     const subscribedChannels =  await Subscription.find( {
-         subscriber : subscriberId,
-     })
+     
+     const subscribedChannels = await Subscription.aggregate([
+        {
+            $match: {
+                subscriber: new mongoose.Types.ObjectId(subscriberId)
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "channel",
+                foreignField: "_id",
+                as: "channelDetails",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "channel",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $unwind: "$channelDetails"
+        },
+        {
+            $addFields: {
+                "channelDetails.subscribersCount": {
+                    $size: "$subscribers"
+                }
+            }
+        },
+        {
+            $replaceRoot: {
+                newRoot: "$channelDetails"
+            }
+        }
+     ])
+     
      return res
                .status(200)
-               .json(new ApiResponse(200, subscribedChannels, "channel subscribed fetched succesfully"))
+               .json(new ApiResponse(200, subscribedChannels, "subscribed channels fetched succesfully"))
 })
 
 export {

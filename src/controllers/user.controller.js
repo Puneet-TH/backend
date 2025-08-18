@@ -5,18 +5,19 @@ import { uploadOnCloudinary } from '../utils/Cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js'
 import jwt from "jsonwebtoken"
 import { Subscription } from '../models/subscriptions.models.js'
+import mongoose from "mongoose"
 
-const generateAcessAndRefreshToken =async(userId) => {
+const generateAccessAndRefreshToken = async(userId) => {
     try {
       const user = await User.findById(userId)
-      const acessToken = user.generateAcessToken()
+      const accessToken = user.generateAccessToken()
       const refreshToken = user.generateRefreshToken()
       
       //since db is an object so adding data in object using . simple
       user.refreshToken = refreshToken
       await user.save({validateBeforeSave: false})//checks for if teh required fields are there or not if enabled false bypass these check bydefault
 
-      return {acessToken, refreshToken}
+      return {accessToken, refreshToken}
 
     } catch (error) {
        throw new ApiError(500, "Something went wrong while generating token")
@@ -25,66 +26,67 @@ const generateAcessAndRefreshToken =async(userId) => {
 
 const registerUser = asyncHandler( async (req, res) => {
     
-   const {fullName, email, username, password} = req.body
-   console.log("email: ", email); 
+ const {fullName, email, username, password } = req.body
+    //console.log("email: ", email);
 
-//    if(fullName === ""){
-//     throw new ApiError(400, "fullname is required")
-//    }
-if([fullName, email, username, password].some((field) => field?.trim() === "")){
-     throw new ApiError(400, "All fields are compulsory")
+    if (
+        [fullName, email, username, password].some((field) => field?.trim() === "")
+    ) {
+        throw new ApiError(400, "All fields are required")
     }
 
- const existedUser = await User.findOne({
-    $or: [{ username }, { email }]
- })
+    const existedUser = await User.findOne({
+        $or: [{ username }, { email }]
+    })
 
- if(existedUser){
-    throw new ApiError(409, "User with email or username already exists")
- }
-   
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  //const coverimageLocalPath = req.files?.coverImage[0]?.path;
+    if (existedUser) {
+        throw new ApiError(409, "User with email or username already exists")
+    }
+    //console.log(req.files);
 
-  let coverImageLocalPath;
+    const avatarLocalPath = req.files?.avatar[0]?.path;
+    //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
-  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
-    coverImageLocalPath = req.files.coverImage[0].path
-  }
-  if(!avatarLocalPath){
-     throw new ApiError(400, "Avatar image is required")
-  }
-
- //uploading to cloudanary
-   const avatar = await uploadOnCloudinary(avatarLocalPath);
-   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-
-   if(!avatar){
-    throw new ApiError(400, "Avatar image is required")
-   }
-  
- const user = await User.create({
-    fullName,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
-    email,
-    password,
-    username: username.toLowerCase()
-  })
- //syntax of .select("-fieldname -secondfield") not to be added 
- const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
- )
-
- if(!createdUser){
-    throw new ApiError(500, "something went wrong while registering the user")
- }
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
     
- return res.status(201).json(
-    new ApiResponse(201, createdUser, "User registered Succesfully")
- )
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is required")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if (!avatar) {
+        throw new ApiError(400, "Avatar file is required")
+    }
    
-})
+
+    const user = await User.create({
+        fullName,
+        avatar: avatar.url,
+        coverImage: coverImage?.url || "",
+        email, 
+        password,
+        username: username.toLowerCase()
+    })
+
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+    if (!createdUser) {
+        throw new ApiError(500, "Something went wrong while registering the user")
+    }
+
+    return res.status(201).json(
+        new ApiResponse(200, createdUser, "User registered Successfully")
+    )
+
+} )
 
 const loginUser = asyncHandler(async(req, res) => {
      //destructuring the body to get username and password
@@ -111,7 +113,7 @@ const loginUser = asyncHandler(async(req, res) => {
         throw new ApiError(401, "Invalid user credential")
      }
      
-     const {acessToken, refreshToken} = await generateAcessAndRefreshToken(user._id)
+     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
      
      const loggedInUser = await User.findById(user._id)
      .select("-password -refreshToken")
@@ -123,13 +125,13 @@ const loginUser = asyncHandler(async(req, res) => {
 
      return  res
      .status(200)
-     .cookie("acessToken", acessToken, options)
+     .cookie("accessToken", accessToken, options)
      .cookie("refreshToken", refreshToken, options)
      .json(
       new ApiResponse(
          200,
          {
-            user : loggedInUser, acessToken, refreshToken
+            user : loggedInUser, accessToken, refreshToken
          },
          "user logged in success"
       )
@@ -159,14 +161,14 @@ const logoutUser = asyncHandler(async(req, res) => {
   
      return res
      .status(200)
-     .clearCookie("acessToken", options)
+     .clearCookie("accessToken", options)
      .clearCookie("refreshToken", options)
      .json(new ApiResponse(200, {}, "User logged Out"))
 
    }
 )
 
-const refreshAcessToken = asyncHandler(async(req, res) => {
+const refreshAccessToken = asyncHandler(async(req, res) => {
    const incoming =  req.cookies.refreshToken || req.body.refreshToken 
     
    if(!incoming){
@@ -189,17 +191,17 @@ try {
         secure: true
      }
    
-   const {acessToken, newrefreshToken} = await generateAcessAndRefreshToken(user._id)
+   const {accessToken, refreshToken: newRefreshToken} = await generateAccessAndRefreshToken(user._id)
       
      return res
      .status(200)
-     .cookie("acessToken", acessToken, options)
-     .cookie("refreshToken", newrefreshToken, options)
+     .cookie("accessToken", accessToken, options)
+     .cookie("refreshToken", newRefreshToken, options)
      .json(
         new ApiResponse(
          200,
-         {acessToken, refreshToken : newrefreshToken},
-         "Acess token refreshed sucessfully"
+         {accessToken, refreshToken: newRefreshToken},
+         "Access token refreshed successfully"
         )
       )
 } catch (error) {
@@ -239,18 +241,37 @@ const getCurrentUser  = asyncHandler(async(req, res) => {
 
 const updateAccountDetails = asyncHandler(async(req, res) => {
 
-   const{fullName, email} = req.body;
+   const{fullName, email, username} = req.body;
    
-   if(!fullName || !email){
+   if(!fullName || !email || !username){
       throw new ApiError(400, "All fields are required")
    }
+
+   // Check if username or email already exists for another user
+   const existingUser = await User.findOne({
+      $and: [
+         { _id: { $ne: req.user._id } }, // Exclude current user
+         { $or: [{ username }, { email }] }
+      ]
+   });
+
+   if (existingUser) {
+      if (existingUser.username === username) {
+         throw new ApiError(409, "Username already exists");
+      }
+      if (existingUser.email === email) {
+         throw new ApiError(409, "Email already exists");
+      }
+   }
+
   //check  //$set is always used in findbyidand update
    const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
          $set: {
             fullName,
-            email
+            email,
+            username
          }
       },
       {new: true} //update hone ke baad vali info return hoti h 
@@ -354,6 +375,59 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>  {
             }
          },
          {
+            $lookup: {
+               from: "videos",
+               localField: "_id",
+               foreignField: "owner",
+               as: "videos",
+               pipeline: [
+                  {
+                     $match: {
+                        isPublished: true
+                     }
+                  },
+                  {
+                     $sort: {
+                        createdAt: -1
+                     }
+                  },
+                  {
+                     $project: {
+                        _id: 1,
+                        title: 1,
+                        thumbnail: 1,
+                        videoFile: 1,
+                        duration: 1,
+                        views: 1,
+                        createdAt: 1,
+                        owner: 1
+                     }
+                  },
+                  {
+                     $lookup: {
+                        from: "users",
+                        localField: "owner",
+                        foreignField: "_id",
+                        as: "owner",
+                        pipeline: [
+                           {
+                              $project: {
+                                 _id: 1,
+                                 username: 1,
+                                 fullName: 1,
+                                 avatar: 1
+                              }
+                           }
+                        ]
+                     }
+                  },
+                  {
+                     $unwind: "$owner"
+                  }
+               ]
+            }
+         },
+         {
             $addFields: {
                SubscribersCount: {
                   $size: "$subscribers"
@@ -380,6 +454,8 @@ const getUserChannelProfile = asyncHandler(async(req, res) =>  {
                avatar: 1,
                coverImage: 1,
                email: 1,
+               videos: 1,
+               createdAt: 1
             }
          }
        ])
@@ -453,7 +529,7 @@ export {
    registerUser,
    loginUser,
    logoutUser,
-   refreshAcessToken,
+   refreshAccessToken,
    changeCurrentPassword,
    getCurrentUser,
    updateAccountDetails,
@@ -461,6 +537,7 @@ export {
    updateUserCoverImage,
    getUserChannelProfile,
    getWatchHitory,
+
 }
 
 

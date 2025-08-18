@@ -12,23 +12,21 @@ const createPlaylist = asyncHandler(async (req, res) => {
         throw new ApiError(401, "name and description is mandatory")
      }
   try {
-      const createdPlaylist = await Playlist.findOneAndUpdate(
-          {   
-             name: name,
-             owner: req.user?._id
-          }, {
-              $setOnInsert: {
-                  name: name,
-                  description: description,
-                  owner: req.user?._id,
-              }
-          }, { upsert: true, returnDocument: "after" } )
+      // Create a new playlist instead of using upsert
+      const createdPlaylist = await Playlist.create({
+          name: name,
+          description: description,
+          owner: req.user?._id,
+          video: [] // Initialize with empty video array (matches model field name)
+      });
+      
       return res
-             .status(200)
-             .json(new ApiResponse(200, createdPlaylist, "playlist created succesfully"))
+             .status(201)
+             .json(new ApiResponse(201, createdPlaylist, "playlist created successfully"))
                
   } catch (error) {
-       throw new ApiError(500, error ? error : "unable to create playlist internal server error")
+       console.error("Create playlist error:", error);
+       throw new ApiError(500, error ? error.message : "unable to create playlist internal server error")
   }
 })
 

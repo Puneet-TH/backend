@@ -14,7 +14,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
        const deleted =  await Like.deleteOne({_id : videoLiked._id})
         return res
                .status(200)
-               .json(new ApiResponse(200, deleted, "already unliked the current video"))          
+               .json(new ApiResponse(200, { liked: false }, "video unliked successfully"))          
     }
     const likeVideo = await Like.create({
         video : videoId,
@@ -22,7 +22,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     })
     return res
            .status(200)
-           .json(new ApiResponse(200, likeVideo, "video liked sucessfully"))
+           .json(new ApiResponse(200, { liked: true }, "video liked successfully"))
    })
 
    
@@ -75,54 +75,74 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
    })
 
 const getLikedVideos = asyncHandler(async (req, res) => {
-        //TODO: get all liked videos
-try {
+    try {
+        const likedVideos = await Like.aggregate([
+            {
+                $match: {
+                    likedBy: new mongoose.Types.ObjectId(req.user._id),
+                    video: { $exists: true, $ne: null }
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "video",
+                    foreignField: "_id",
+                    as: "videoDetails"
+                }
+            },
+            {
+                $unwind: "$videoDetails"
+            },
+            {
+                $match: {
+                    "videoDetails.isPublished": true
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "videoDetails.owner",
+                    foreignField: "_id",
+                    as: "ownerDetails"
+                }
+            },
+            {
+                $unwind: "$ownerDetails"
+            },
+            {
+                $project: {
+                    _id: "$videoDetails._id",
+                    title: "$videoDetails.title",
+                    description: "$videoDetails.description",
+                    videoFile: "$videoDetails.videoFile",
+                    thumbnail: "$videoDetails.thumbnail",
+                    duration: "$videoDetails.duration",
+                    views: "$videoDetails.views",
+                    createdAt: "$videoDetails.createdAt",
+                    owner: {
+                        _id: "$ownerDetails._id",
+                        username: "$ownerDetails.username",
+                        fullName: "$ownerDetails.fullName",
+                        avatar: "$ownerDetails.avatar"
+                    }
+                }
+            },
+            {
+                $sort: {
+                    createdAt: -1
+                }
+            }
+        ]);
 
-  const allLikedVideos = await Like.aggregate([
-        {
-            $match: {
-                likedBy: new mongoose.Types.ObjectId(req.user._id)
-            }
-        },
-        {
-            $lookup: {
-                from: "videos", // collection name
-                localField: "video",
-                foreignField: "_id",
-                as: "allVideos"
-            }
-        },{$unwind: "$allVideos"},
-        {
-            $lookup: {
-                from: "users", // collection name
-                localField: "allVideos.owner",
-                foreignField: "_id",
-                as: "allLikedVideosOwner"
-            }
-        },{$unwind: "$allLikedVideosOwner"},
-        {
-            $project: {
-                owner: {
-              _id: "$allLikedVideosOwner._id",
-              username: "$allLikedVideosOwner.username",
-              avatar: "$allLikedVideosOwner.avatar"
-               },
-                videoFile: "$allVideos.videoFile",
-                username: "$allVideos.username",
-                description: "$allVideos.description",
-                likedBy: "$allVideos.likedBy",
-                thumbnail: "$allVideos.thumbnail",
-                avatar: "$allVideos.avatar",
-                views: "$allVideos.views",
-                duration: "$allVideos.duration",
-                isPublished: "$allVideos.isPublished"
-        }
-    }
-    ])
-      return res.status(200).json(new ApiResponse(200, allLikedVideos?.[0], "all videos liked by user fetched sucessfully"))
+        return res
+            .status(200)
+            .json(new ApiResponse(200, likedVideos, "liked videos fetched successfully"));
+            
     } catch (error) {
-        throw new ApiError(500, error? error : "unable to fetch from DB")
-}
+        console.error("Get liked videos error:", error);
+        throw new ApiError(500, "Unable to fetch liked videos");
+    }
 })
 
 export {

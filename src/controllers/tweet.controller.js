@@ -62,7 +62,23 @@ const createTweet = asyncHandler(async (req, res) => {
 //through simple find method of mongo db where we use filter to retreive data
 const getUserTweets = asyncHandler(async (req, res) => {
     try {
-      const tweets = await Tweet.find({ owner: req.user._id });
+      const { username } = req.params;
+      let targetUserId;
+      
+      if (username) {
+        // Find user by username
+        const targetUser = await User.findOne({ username });
+        if (!targetUser) {
+          throw new ApiError(404, "User not found");
+        }
+        targetUserId = targetUser._id;
+      } else {
+        // Use authenticated user's id
+        targetUserId = req.user._id;
+      }
+      
+      const tweets = await Tweet.find({ owner: targetUserId })
+        .sort({ createdAt: -1 });
   
       return res.status(200).json(
         new ApiResponse(200, tweets, "User's tweets fetched successfully")
