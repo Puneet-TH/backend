@@ -118,7 +118,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     console.log(videoFile);
     let thumbnail = null;
     if(thumbnailLocalPath){
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+     thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     console.log(thumbnail);
     }
     
@@ -163,7 +163,7 @@ const updateVideo = asyncHandler(async (req, res) => {
     const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
     let thumbnail = null;
     if(thumbnailLocalPath){
-    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
+      thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     console.log(thumbnail);
     }
 
