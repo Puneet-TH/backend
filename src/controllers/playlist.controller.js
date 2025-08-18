@@ -7,7 +7,6 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 
 const createPlaylist = asyncHandler(async (req, res) => {
     const {name, description} = req.body
-    console.log(name);
      if(!name || !description) {
         throw new ApiError(401, "name and description is mandatory")
      }
@@ -49,7 +48,6 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
 
 const getPlaylistById = asyncHandler(async (req, res) => {
     const {playlistId} = req.params
-    console.log(playlistId);
     if(!isValidObjectId(playlistId)) {
         throw new ApiError(401, "wrong format of Id")
     }

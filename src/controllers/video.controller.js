@@ -242,18 +242,15 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(401, "title and description is necessary")
     }
     const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
-    console.log(thumbnailLocalPath);
     const videoFileLocalPath = req.files?.videoFile[0]?.path; 
     if(!videoFileLocalPath){
         throw new ApiError(401, "video is a required field")
     }
     
     const videoFile = await uploadOnCloudinary(videoFileLocalPath)
-    console.log(videoFile);
     let thumbnail = null;
     if(thumbnailLocalPath){
         thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
-        console.log(thumbnail);
     }
     
     const video = await Video.create(
@@ -362,8 +359,6 @@ const updateVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
     const userId = req.user?._id;
     
-    console.log(title, description, videoId);
-    
     if (!videoId || !title || !description) {
         throw new ApiError(400, "Video ID, title and description are required fields");
     }
@@ -381,7 +376,6 @@ const updateVideo = asyncHandler(async (req, res) => {
     
     if (thumbnailLocalPath) {
         thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
-        console.log(thumbnail);
     }
 
     try {

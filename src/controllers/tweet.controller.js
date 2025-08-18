@@ -12,7 +12,6 @@ const createTweet = asyncHandler(async (req, res) => {
         throw new ApiError(401, "User not authenticated");
     }
     const {content} = req.body
-    console.log(content)
     const user = await User.findById(req.user?._id) 
     if(!user) {
         throw new ApiError(401, "cannot get tweet from user")
@@ -96,8 +95,6 @@ const updateTweet = asyncHandler(async (req, res) => {
     }
       const {content} = req.body
       const {tweetId} = req.params
-      console.log(content)
-      console.log(tweetId)
       if(!content || !tweetId) {
         throw new ApiError(400, "please provide new tweet content bad user request")
       }
@@ -117,7 +114,6 @@ const updateTweet = asyncHandler(async (req, res) => {
 
 const deleteTweet = asyncHandler(async (req, res) => {
       const {tweetId} = req.params
-      console.log(tweetId)
       const deleteTweet = await Tweet.findByIdAndDelete(tweetId)
       return res
              .status(200)
