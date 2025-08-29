@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken"
 import { Subscription } from '../models/subscriptions.models.js'
 import mongoose from "mongoose"
 
+
 const generateAccessAndRefreshToken = async(userId) => {
     try {
       const user = await User.findById(userId)
@@ -64,6 +65,10 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Avatar file is required")
     }
    
+   //  can use secure url as the cloudinary response has two url one is simple .url 
+   // and other is .secure_url simple = http , secure_url = https, 
+   // always use secure url in todays time as it is important without it
+   //  browser converts it itself
 
     const user = await User.create({
         fullName,
